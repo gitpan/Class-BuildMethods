@@ -16,7 +16,7 @@ Version 0.10
 
 =cut
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 =head1 SYNOPSIS
 
@@ -166,7 +166,8 @@ sub build {
                     my $self     = shift;
                     my $instance = refaddr $self;
                     unless ( exists $value_for{$method}{$instance} ) {
-                        $value_for{$method}{$instance} = $default_for{$method};
+                        $value_for{$method}{$instance}
+                          = $default_for{$method};
                     }
                     return $value_for{$method}{$instance} unless @_;
                     my $new_value = shift;
@@ -193,7 +194,8 @@ sub build {
                     my $self     = shift;
                     my $instance = refaddr $self;
                     unless ( exists $value_for{$method}{$instance} ) {
-                        $value_for{$method}{$instance} = $default_for{$method};
+                        $value_for{$method}{$instance}
+                          = $default_for{$method};
                     }
                     return $value_for{$method}{$instance} unless @_;
                     $value_for{$method}{$instance} = shift;
@@ -252,6 +254,19 @@ C<Class::BuildMethods> when you're creating it.
 
 sub destroy {
     my ( $class, $object ) = @_;
+    my @methods  = $class->_find_methods($object);
+    my $instance = refaddr $object;
+
+    if (@methods) {
+        foreach my $method (@methods) {
+            delete $value_for{$method}{$instance};
+        }
+    }
+    return 1;
+}
+
+sub _find_methods {
+    my ( $class, $object ) = @_;
     my $instance = refaddr $object;
     my $package = ref $object if blessed $object;
     $package ||= '';
@@ -266,13 +281,7 @@ sub destroy {
     else {
         @methods = @{ $methods_for{$package} };
     }
-
-    if (@methods) {
-        foreach my $method (@methods) {
-            delete $value_for{$method}{$instance};
-        }
-    }
-    return 1;
+    return @methods;
 }
 
 # this is a testing hook to ensure that destroyed data is really gone
@@ -357,6 +366,36 @@ In reality, you probably will never need this method.
 
 sub packages {
     return sort keys %methods_for;
+}
+
+##############################################################################
+
+=head1 DEBUGGING
+
+=head2 dump
+
+  my $hash_ref = Class::BuildMethods->dump($object);
+
+The C<dump()> method returns a hashref.  The keys are the method names and the
+values are whatever they are currently set to.  This method is provided to
+ease debugging as merely dumping an inside-out object generally does not
+return its structure.
+
+=cut
+
+sub dump {
+    my ( $class, $object ) = @_;
+    my @methods  = $class->_find_methods($object);
+    my $instance = refaddr $object;
+
+    my %dump_for;
+    if (@methods) {
+        foreach my $method (@methods) {
+            my ($attribute) = $method =~ /^.*::([^:]+)$/;
+            $dump_for{$attribute} = $value_for{$method}{$instance};
+        }
+    }
+    return \%dump_for;
 }
 
 =head1 CAVEATS
