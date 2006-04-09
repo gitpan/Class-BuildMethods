@@ -1,8 +1,11 @@
 Revision history for Class-BuildMethods
 
+0.111   2006-04-09
+        - Minor documentation fixes
+
 0.11    2005-12-22
-        Added dump() method.
+        - Added dump() method.
 
 0.10    Date/time
-        First version, released on an unsuspecting world.
+        - First version, released on an unsuspecting world.
 

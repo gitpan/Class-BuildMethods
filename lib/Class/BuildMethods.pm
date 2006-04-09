@@ -12,11 +12,11 @@ Class::BuildMethods - Lightweight implementation-agnostic generic methods.
 
 =head1 VERSION
 
-Version 0.10
+Version 0.111
 
 =cut
 
-our $VERSION = '0.11';
+our $VERSION = '0.111';
 
 =head1 SYNOPSIS
 
@@ -403,7 +403,14 @@ sub dump {
 Some people will not be happy that if they need to store an array or a hash
 they must pass them by reference as each generated method expects a single
 value to be passed in when used as a "setter".  This is because this module is
-designd to be I<simple>.  It's very lightweight and very fast.
+designed to be I<simple>.  It's very lightweight and very fast.
+
+Note that you cannot automatically serialize the data herein.  The reason for
+this is fairly simple:  you can add extra attributes with this module, but
+since it makes no implementation assumptions, it doesn't know how your code
+stores its data.  If you need to serialize your objects, use the C<&dump>
+method to fetch the attribute values from C<Class::BuildMethods> and handle
+the serialization manually.
 
 =head1 AUTHOR
 
