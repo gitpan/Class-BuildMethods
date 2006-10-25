@@ -1,5 +1,11 @@
 Revision history for Class-BuildMethods
 
+0.12    2006-10-25
+        - No functional changes.
+        - Listed Scalar::Util as a prereq because refaddr() wasn't added until
+          1.0701
+        - Added t/10-basic.t to MANIFEST.  Oops :(
+
 0.111   2006-04-09
         - Minor documentation fixes
 

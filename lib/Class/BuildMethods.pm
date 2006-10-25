@@ -12,11 +12,11 @@ Class::BuildMethods - Lightweight implementation-agnostic generic methods.
 
 =head1 VERSION
 
-Version 0.111
+Version 0.12
 
 =cut
 
-our $VERSION = '0.111';
+our $VERSION = '0.12';
 
 =head1 SYNOPSIS
 
