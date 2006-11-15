@@ -1,7 +1,7 @@
 #!perl 
 
 #use Test::More qw/no_plan/;
-use Test::More tests => 49;
+use Test::More tests => 50;
 use Scalar::Util qw/refaddr/;
 
 my $CLASS = 'Class::BuildMethods';
@@ -46,7 +46,9 @@ ok !defined $foo->rank, '... and it should remove instance data';
 {
 
     package Foo::Bar;
-    use Class::BuildMethods poet => { default => 'Publius Ovidius' };
+    use Class::BuildMethods 
+      poet       => { default => 'Publius Ovidius' },
+      published  => { default => 0 };
 }
 my $foo_bar = bless \do { my $anon_scalar }, 'Foo::Bar';
 can_ok $foo_bar, 'poet';
@@ -55,6 +57,8 @@ is $foo_bar->poet, 'Publius Ovidius',
 ok $foo_bar->poet("John Davidson"),
   '... and we should be able to set a new value';
 is $foo_bar->poet, 'John Davidson', '... and fetch the default value';
+is $foo_bar->published, '0',
+   '... and false defaults should be allowed';
 
 {
 
@@ -156,7 +160,8 @@ my $destroyed;
     $thing->name('bob')->rank('odor');
     main::is(
         Class::BuildMethods->_peek( 'Check::Destroy', 'name', $destroyed ),
-        'bob', 'Internal values of data should be correct' );
+        'bob', 'Internal values of data should be correct'
+    );
 }
 
 ok !

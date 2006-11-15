@@ -1,8 +1,20 @@
---- #YAML:1.0
+---
 name: Class-BuildMethods
-version: 0.12
+version: 0.20
 author:
   - 'Curtis "Ovid" Poe <ovid@cpan.org>'
-abstract: "Lightweight implementation-agnostic generic methods."
+abstract: Lightweight implementation-agnostic generic methods.
 license: perl
-generated_by: Module::Build version 0.2704, without YAML.pm
+resources:
+  license: http://dev.perl.org/licenses/
+requires:
+  Scalar::Util: 1.08
+  Test::More: 0
+provides:
+  Class::BuildMethods:
+    file: lib/Class/BuildMethods.pm
+    version: 0.20
+generated_by: Module::Build version 0.2805
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

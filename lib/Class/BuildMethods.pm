@@ -12,11 +12,11 @@ Class::BuildMethods - Lightweight implementation-agnostic generic methods.
 
 =head1 VERSION
 
-Version 0.12
+Version 0.20
 
 =cut
 
-our $VERSION = '0.12';
+our $VERSION = '0.20';
 
 =head1 SYNOPSIS
 
@@ -84,14 +84,25 @@ key will be assigned as the default value for the method.
         my ($self, $age) = @_;
         die "Too young" if $age < 21;
      }
+   },
+   drinking_age => {
+     class_data => 1,
+     default    => 21
    };
 
  # later
 
  my $bubba = Drinking::Buddy->new;
- $bubba->age(18);   # fatal error
- $bubba->age(21);   # Works
- print $bubba->age; # prints '21'
+ $bubba->age(18);            # fatal error
+ $bubba->age(21);            # Works
+ print $bubba->age;          # prints '21'
+ print $bubba->drinking_age; # prints '21'
+
+ my $jimbo = Drinking::Buddy->new;
+ print $jimbo->drinking_age; # prints '21'
+ $jimbo->drinking_age(18);   # UK drinking age
+ print $jimbo->drinking_age; # prints '18'
+ print $bubba->drinking_age; # prints '18'
 
 If a key of "validate" is found, a subroutine is expected as the next
 argument.  When setting a value, the subroutine will be called with the
@@ -122,33 +133,32 @@ my %value_for;
 my %default_for;
 my %methods_for;
 my %no_destroy_for;
+my %class_data_for;
 
 sub build {
     my $class = shift;
-    my ($callpack) = caller();
-    $methods_for{$callpack} ||= [];
+    my ($calling_package) = caller();
+    $methods_for{$calling_package} ||= [];
     while (@_) {
         my $method = shift;
         if ( '[NO_DESTROY]' eq $method ) {
-            $no_destroy_for{$callpack} = 1;
+            $no_destroy_for{$calling_package} = 1;
             next;
         }
         unless ( $method =~ $VALID_METHOD_NAME ) {
             require Carp;
             Carp::croak("'$method' is not a valid method name");
         }
-        $method = "${callpack}::$method";
-        push @{ $methods_for{$callpack} } => $method;
-        my $constraints;
-        my $validation_sub;
+        $method = "${calling_package}::$method";
+        push @{ $methods_for{$calling_package} } => $method;
+        my ( $constraints, $validation_sub, $class_data );
         if ( 'HASH' eq ref $_[0] ) {
-            $constraints = shift;
-            if ( exists $constraints->{default} ) {
-                $default_for{$method} = delete $constraints->{default};
-            }
-            if ( exists $constraints->{validate} ) {
-                $validation_sub = delete $constraints->{validate};
-            }
+            $constraints          = shift;
+            $default_for{$method} = delete $constraints->{default}
+              if exists $constraints->{default};
+            $validation_sub       = delete $constraints->{validate};
+            $class_data           = delete $constraints->{class_data};
+
             if ( my @keys = keys %$constraints ) {
                 require Carp;
                 Carp::croak("Unknown constraint keys (@keys) for $method");
@@ -160,67 +170,236 @@ sub build {
         # purposeful.  By not trying anything fancy like building the code and
         # eval'ing it or trying to shove too many conditionals into one sub,
         # we keep them fairly lightweight.
-        if ($validation_sub) {
-            if ( $default_for{$method} ) {
-                *$method = sub {
-                    my $self     = shift;
-                    my $instance = refaddr $self;
-                    unless ( exists $value_for{$method}{$instance} ) {
-                        $value_for{$method}{$instance}
-                          = $default_for{$method};
-                    }
-                    return $value_for{$method}{$instance} unless @_;
-                    my $new_value = shift;
-                    $self->$validation_sub($new_value);
-                    $value_for{$method}{$instance} = $new_value;
-                    return $self;
-                };
+        if ($class_data) {
+            $class_data_for{$calling_package} = 1;
+            if ( defined $validation_sub ) {
+                if ( exists $default_for{$method} ) {
+                    *$method = sub {
+                        my $proto = shift;
+                        my $class = ref $proto || $proto;
+                        unless ( exists $class_data_for{$class} ) {
+                            no strict 'refs';
+                            my @isa = @{"$class\::ISA"};
+                            return $isa[0]->$method(@_);
+                        }
+                        unless ( exists $value_for{$method}{$class} ) {
+                            $value_for{$method}{$class}
+                              = $default_for{$method};
+                        }
+                        return $value_for{$method}{$class}
+                          unless @_;
+                        my $new_value = shift;
+                        $proto->$validation_sub($new_value);
+                        $value_for{$method}{$class} = $new_value;
+                        return $proto;
+                    };
+                }
+                else {
+                    *$method = sub {
+                        my $proto = shift;
+                        my $class = ref $proto || $proto;
+                        unless ( exists $class_data_for{$class} ) {
+                            no strict 'refs';
+                            my @isa = @{"$class\::ISA"};
+                            return $isa[0]->$method(@_);
+                        }
+                        return $value_for{$method}{$class}
+                          unless @_;
+                        my $new_value = shift;
+                        $proto->$validation_sub($new_value);
+                        $value_for{$method}{$class} = $new_value;
+                        return $proto;
+                    };
+                }
             }
             else {
-                *$method = sub {
-                    my $self     = shift;
-                    my $instance = refaddr $self;
-                    return $value_for{$method}{$instance} unless @_;
-                    my $new_value = shift;
-                    $self->$validation_sub($new_value);
-                    $value_for{$method}{$instance} = $new_value;
-                    return $self;
-                };
+                if ( exists $default_for{$method} ) {
+                    *$method = sub {
+                        my $proto = shift;
+                        my $class = ref $proto || $proto;
+                        unless ( exists $class_data_for{$class} ) {
+                            no strict 'refs';
+                            my @isa = @{"$class\::ISA"};
+                            return $isa[0]->$method(@_);
+                        }
+                        unless ( exists $value_for{$method}{$class} ) {
+                            $value_for{$method}{$class}
+                              = $default_for{$method};
+                        }
+                        return $value_for{$method}{$class}
+                          unless @_;
+                        $value_for{$method}{$class} = shift;
+                        return $proto;
+                    };
+                }
+                else {
+                    *$method = sub {
+                        my $proto = shift;
+                        my $class = ref $proto || $proto;
+                        unless ( exists $class_data_for{$class} ) {
+                            no strict 'refs';
+                            my @isa = @{"$class\::ISA"};
+                            return $isa[0]->$method(@_);
+                        }
+                        return $value_for{$method}{$class} unless @_;
+                        $value_for{$method}{$class} = shift;
+                        return $proto;
+                    };
+                }
             }
         }
-        else {
-            if ( $default_for{$method} ) {
-                *$method = sub {
-                    my $self     = shift;
-                    my $instance = refaddr $self;
-                    unless ( exists $value_for{$method}{$instance} ) {
-                        $value_for{$method}{$instance}
-                          = $default_for{$method};
-                    }
-                    return $value_for{$method}{$instance} unless @_;
-                    $value_for{$method}{$instance} = shift;
-                    return $self;
-                };
+        else {    # instance data, not class data
+            if ( defined $validation_sub ) {
+                if ( exists $default_for{$method} ) {
+                    *$method = sub {
+                        my $self     = shift;
+                        my $instance = refaddr $self;
+                        unless ( exists $value_for{$method}{$instance} ) {
+                            $value_for{$method}{$instance}
+                              = $default_for{$method};
+                        }
+                        return $value_for{$method}{$instance} unless @_;
+                        my $new_value = shift;
+                        $self->$validation_sub($new_value);
+                        $value_for{$method}{$instance} = $new_value;
+                        return $self;
+                    };
+                }
+                else {
+                    *$method = sub {
+                        my $self     = shift;
+                        my $instance = refaddr $self;
+                        return $value_for{$method}{$instance} unless @_;
+                        my $new_value = shift;
+                        $self->$validation_sub($new_value);
+                        $value_for{$method}{$instance} = $new_value;
+                        return $self;
+                    };
+                }
             }
             else {
-                *$method = sub {
-                    my $self     = shift;
-                    my $instance = refaddr $self;
-                    return $value_for{$method}{$instance} unless @_;
-                    $value_for{$method}{$instance} = shift;
-                    return $self;
-                };
+                if ( exists $default_for{$method} ) {
+                    *$method = sub {
+                        my $self     = shift;
+                        my $instance = refaddr $self;
+                        unless ( exists $value_for{$method}{$instance} ) {
+                            $value_for{$method}{$instance}
+                              = $default_for{$method};
+                        }
+                        return $value_for{$method}{$instance} unless @_;
+                        $value_for{$method}{$instance} = shift;
+                        return $self;
+                    };
+                }
+                else {
+                    *$method = sub {
+                        my $self     = shift;
+                        my $instance = refaddr $self;
+                        return $value_for{$method}{$instance} unless @_;
+                        $value_for{$method}{$instance} = shift;
+                        return $self;
+                    };
+                }
             }
         }
     }
-    unless ( $no_destroy_for{$callpack} ) {
+    unless ( $no_destroy_for{$calling_package} ) {
         no strict 'refs';
-        *{"${callpack}::DESTROY"} = sub {
-            my $self = shift;
-            __PACKAGE__->destroy($self);
+        *{"${calling_package}::DESTROY"} = sub {
+            __PACKAGE__->destroy(shift);
         };
     }
 }
+
+##############################################################################
+
+=head1 CLASS DATA
+
+Class data are data which are shared by all members of a class.  For example,
+if you create a C<Universe> class, it's reasonable to assume that they will
+all share the same value for PI (~ 3.14159), assuming you're really keen on
+the anthropic principle and take it too far.   You do this by simply
+specifying a method as class data:
+
+ package Universe;
+
+ use Class::BuildMethods
+   pi {
+     class_data => 1,
+     default    => 3.1415927,
+   };
+
+The default is not mandatary for class data, but it's more commonly used than
+for instance data.  The validation property is still supported.
+
+Note that if you inherit a class method, the inherited class will B<also>
+share this class data:
+
+ package Universe;
+
+ use Class::BuildMethods
+   pi => {
+     class_data => 1,
+     default    => 3.1415927,
+   };
+
+ sub new { bless {}, shift }
+
+ package Universe::Fantasy;
+ use base 'Universe';
+
+In the above example, both C<Universe> and C<Universe::Fantasy> will share the
+value of C<pi> and changing the value in either the superclass or subclass
+will change the value for the other.
+
+If you wish to be able to override the class data value, your subclass must
+also declare the class data using C<Class::BuildMethods>.
+
+
+ package Universe;
+
+ use Class::BuildMethods
+   pi => {
+     class_data => 1,
+     default    => 3.1415927,
+   };
+
+ sub new { bless {}, shift }
+
+ package Universe::Roman;
+ use base 'Universe';
+
+ # Note that the story that ancient Romans used '3' for the value of pi is
+ # probably apocryphal.
+
+ use Class::BuildMethods
+   pi => {
+     class_data => 1,
+     default    => 3,
+   };
+ 
+With the above code, the value of pi is not shared between the classes.  If
+you want the C<Universe::Roman> class to have the initial value for pi but
+later be able to change it independently, do something like this:
+ 
+ package Universe::Roman;
+ use base 'Universe';
+
+ # Note that the story that ancient Romans used '3' for the value of pi is
+ # probably apocryphal.
+
+ use Class::BuildMethods
+   pi => {
+     class_data => 1,
+   };
+ 
+ sub new {
+    my $class = shift;
+    $class->pi($class->SUPER::pi);
+    return bless {}, $class;
+ }
+ 
+=cut
 
 ##############################################################################
 
@@ -338,6 +517,7 @@ sub reclaim {
     return unless $methods_for{$package};
     my @methods = @{ $methods_for{$package} };
     delete $methods_for{$package};
+    delete $class_data_for{$package};
     delete $no_destroy_for{$package};
     delete @default_for{@methods};
     delete @value_for{@methods};
@@ -411,6 +591,9 @@ since it makes no implementation assumptions, it doesn't know how your code
 stores its data.  If you need to serialize your objects, use the C<&dump>
 method to fetch the attribute values from C<Class::BuildMethods> and handle
 the serialization manually.
+
+When in C<DESTROY> is invoked, class data is not removed because other
+instances may have that data.
 
 =head1 AUTHOR
 
