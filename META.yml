@@ -1,6 +1,6 @@
 ---
 name: Class-BuildMethods
-version: 0.20
+version: 0.21
 author:
   - 'Curtis "Ovid" Poe <ovid@cpan.org>'
 abstract: Lightweight implementation-agnostic generic methods.
@@ -8,12 +8,11 @@ license: perl
 resources:
   license: http://dev.perl.org/licenses/
 requires:
-  Scalar::Util: 1.08
   Test::More: 0
 provides:
   Class::BuildMethods:
     file: lib/Class/BuildMethods.pm
-    version: 0.20
+    version: 0.21
 generated_by: Module::Build version 0.2805
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html

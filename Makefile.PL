@@ -5,7 +5,6 @@ WriteMakefile
   'NAME' => 'Class::BuildMethods',
   'VERSION_FROM' => 'lib/Class/BuildMethods.pm',
   'PREREQ_PM' => {
-    'Scalar::Util' => '1.08',
     'Test::More' => '0'
   },
   'INSTALLDIRS' => 'site',

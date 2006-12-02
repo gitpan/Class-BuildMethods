@@ -1,5 +1,10 @@
 Revision history for Class-BuildMethods
 
+0.21    2006-12-2
+        - Implemented Scalar::Util::refaddr internally because ActiveState's
+          build process only provides Scalar::Util 1.07 and this version does
+          not provide this function.
+
 0.20    2006-11-15
         - Added support for class data.
         - Fixed bug whereby default data could not have a false value.

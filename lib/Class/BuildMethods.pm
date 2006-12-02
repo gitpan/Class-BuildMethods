@@ -3,7 +3,29 @@ package Class::BuildMethods;
 use warnings;
 use strict;
 
-use Scalar::Util qw/refaddr blessed/;
+use Scalar::Util qw/blessed/;
+
+#
+# This is provided next to Scalar::Util so that people can see what's going
+# on.  Basically, ActiveState's build system does not provide a version of
+# Scalar::Util with refaddr, so modules requiring this function cannot build.
+# As a result, I'm forced to manually copy it here.
+#
+
+sub _refaddr($) {
+    my $pkg = ref( $_[0] ) or return undef;
+    if ( blessed( $_[0] ) ) {
+        bless $_[0], 'Class::BuildMethods::Fake';
+    }
+    else {
+        $pkg = undef;
+    }
+    "$_[0]" =~ /0x(\w+)/;
+    my $i = do { local $^W; hex $1 };
+    bless $_[0], $pkg if defined $pkg;
+    $i;
+}
+
 my $VALID_METHOD_NAME = qr/^[_[:alpha:]][[:word:]]*$/;
 
 =head1 NAME
@@ -12,11 +34,11 @@ Class::BuildMethods - Lightweight implementation-agnostic generic methods.
 
 =head1 VERSION
 
-Version 0.20
+Version 0.21
 
 =cut
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 =head1 SYNOPSIS
 
@@ -153,11 +175,11 @@ sub build {
         push @{ $methods_for{$calling_package} } => $method;
         my ( $constraints, $validation_sub, $class_data );
         if ( 'HASH' eq ref $_[0] ) {
-            $constraints          = shift;
+            $constraints = shift;
             $default_for{$method} = delete $constraints->{default}
               if exists $constraints->{default};
-            $validation_sub       = delete $constraints->{validate};
-            $class_data           = delete $constraints->{class_data};
+            $validation_sub = delete $constraints->{validate};
+            $class_data     = delete $constraints->{class_data};
 
             if ( my @keys = keys %$constraints ) {
                 require Carp;
@@ -253,7 +275,7 @@ sub build {
                 if ( exists $default_for{$method} ) {
                     *$method = sub {
                         my $self     = shift;
-                        my $instance = refaddr $self;
+                        my $instance = _refaddr $self;
                         unless ( exists $value_for{$method}{$instance} ) {
                             $value_for{$method}{$instance}
                               = $default_for{$method};
@@ -268,7 +290,7 @@ sub build {
                 else {
                     *$method = sub {
                         my $self     = shift;
-                        my $instance = refaddr $self;
+                        my $instance = _refaddr $self;
                         return $value_for{$method}{$instance} unless @_;
                         my $new_value = shift;
                         $self->$validation_sub($new_value);
@@ -281,7 +303,7 @@ sub build {
                 if ( exists $default_for{$method} ) {
                     *$method = sub {
                         my $self     = shift;
-                        my $instance = refaddr $self;
+                        my $instance = _refaddr $self;
                         unless ( exists $value_for{$method}{$instance} ) {
                             $value_for{$method}{$instance}
                               = $default_for{$method};
@@ -294,7 +316,7 @@ sub build {
                 else {
                     *$method = sub {
                         my $self     = shift;
-                        my $instance = refaddr $self;
+                        my $instance = _refaddr $self;
                         return $value_for{$method}{$instance} unless @_;
                         $value_for{$method}{$instance} = shift;
                         return $self;
@@ -434,7 +456,7 @@ C<Class::BuildMethods> when you're creating it.
 sub destroy {
     my ( $class, $object ) = @_;
     my @methods  = $class->_find_methods($object);
-    my $instance = refaddr $object;
+    my $instance = _refaddr $object;
 
     if (@methods) {
         foreach my $method (@methods) {
@@ -446,7 +468,7 @@ sub destroy {
 
 sub _find_methods {
     my ( $class, $object ) = @_;
-    my $instance = refaddr $object;
+    my $instance = _refaddr $object;
     my $package = ref $object if blessed $object;
     $package ||= '';
     my @methods;
@@ -466,10 +488,10 @@ sub _find_methods {
 # this is a testing hook to ensure that destroyed data is really gone
 # do not rely on this method
 sub _peek {
-    my ( $class, $package, $method, $refaddr ) = @_;
+    my ( $class, $package, $method, $_refaddr ) = @_;
     my $fq_method = "${package}::$method";
-    return unless exists $value_for{$fq_method}{$refaddr};
-    return $value_for{$fq_method}{$refaddr};
+    return unless exists $value_for{$fq_method}{$_refaddr};
+    return $value_for{$fq_method}{$_refaddr};
 }
 
 =head2 reset
@@ -566,7 +588,7 @@ return its structure.
 sub dump {
     my ( $class, $object ) = @_;
     my @methods  = $class->_find_methods($object);
-    my $instance = refaddr $object;
+    my $instance = _refaddr $object;
 
     my %dump_for;
     if (@methods) {
@@ -621,4 +643,3 @@ under the same terms as Perl itself.
 =cut
 
 1;    # End of Class::BuildMethods
-## Please see file perltidy.ERR

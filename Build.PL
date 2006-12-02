@@ -9,7 +9,6 @@ my $builder = Module::Build->new(
     dist_version_from => 'lib/Class/BuildMethods.pm',
     requires          => {
         'Test::More'   => 0,
-        'Scalar::Util' => 1.08,
     },
     add_to_cleanup     => ['Class-BuildMethods-*'],
     create_makefile_pl => 'traditional',
