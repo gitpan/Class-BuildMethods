@@ -2,7 +2,6 @@
 
 #use Test::More qw/no_plan/;
 use Test::More tests => 50;
-use Scalar::Util qw/refaddr/;
 
 my $CLASS = 'Class::BuildMethods';
 
@@ -10,6 +9,7 @@ BEGIN {
     chdir 't' if -d 't';
     unshift @INC, '../lib';
 }
+*refaddr = *Class::BuildMethods::_refaddr;
 
 eval <<END_PACKAGE;
 package Bad::Method;
@@ -156,7 +156,7 @@ my $destroyed;
     use Class::BuildMethods qw/name rank/;
 
     my $thing = bless [], 'Check::Destroy';
-    $destroyed = main::refaddr($thing);
+    $destroyed = ::refaddr($thing);
     $thing->name('bob')->rank('odor');
     main::is(
         Class::BuildMethods->_peek( 'Check::Destroy', 'name', $destroyed ),
@@ -171,11 +171,10 @@ ok !
 {
 
     package Check::NoDestroy;
-    use Scalar::Util 'refaddr';
     use Class::BuildMethods qw/name rank [NO_DESTROY]/;
 
     my $thing = bless [], 'Check::NoDestroy';
-    $destroyed = refaddr($thing);
+    $destroyed = ::refaddr($thing);
     $thing->name('bob')->rank('odor');
     main::is(
         Class::BuildMethods->_peek( 'Check::NoDestroy', 'name', $destroyed ),

@@ -34,11 +34,11 @@ Class::BuildMethods - Lightweight implementation-agnostic generic methods.
 
 =head1 VERSION
 
-Version 0.21
+Version 0.22
 
 =cut
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 SYNOPSIS
 
@@ -346,7 +346,7 @@ specifying a method as class data:
  package Universe;
 
  use Class::BuildMethods
-   pi {
+   pi => {
      class_data => 1,
      default    => 3.1415927,
    };
@@ -469,18 +469,26 @@ sub destroy {
 sub _find_methods {
     my ( $class, $object ) = @_;
     my $instance = _refaddr $object;
-    my $package = ref $object if blessed $object;
-    $package ||= '';
+    my $this_package = ref $object if blessed $object;
+    $this_package ||= '';
+    
+    my @packages = $this_package;
+    {
+        no strict 'refs';
+        push @packages => @{"${this_package}::ISA"};
+    }
     my @methods;
-    if ( !exists $methods_for{$package} ) {
-        while ( my ( $method, $instance_hash ) = each %value_for ) {
-            if ( exists $instance_hash->{$instance} ) {
-                push @methods => $method;
+    foreach my $package (@packages) {
+        if ( !exists $methods_for{$package} ) {
+            while ( my ( $method, $instance_hash ) = each %value_for ) {
+                if ( exists $instance_hash->{$instance} ) {
+                    push @methods => $method;
+                }
             }
         }
-    }
-    else {
-        @methods = @{ $methods_for{$package} };
+        else {
+            push @methods => @{ $methods_for{$package} };
+        }
     }
     return @methods;
 }

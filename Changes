@@ -1,5 +1,11 @@
 Revision history for Class-BuildMethods
 
+0.22    2006-12-12
+        - Removed the references to Scalar::Util::refaddr from the tests :/
+        - Fixed bug where instance data might accidentally retain its data
+          between different instances.  Reported by Collin Winter.
+          http://rt.cpan.org/Ticket/Display.html?id=23852
+
 0.21    2006-12-2
         - Implemented Scalar::Util::refaddr internally because ActiveState's
           build process only provides Scalar::Util 1.07 and this version does
